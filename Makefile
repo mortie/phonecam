@@ -54,8 +54,7 @@ build-webrtc:
 webrtc/.completed:
 	(cd webrtc && ./build.sh $(WEBRTC_PATH))
 
-# Generate a .d file from a C++ source file to re-generate the source
-# when a dependency changes
+# Generate a dependency graph .d file from a C++ source file
 $(BUILD)/%.cc.d: %.cc $(HDRS)
 	@mkdir -p $(@D)
 	(: DEP :); $(CXX) $(CXXFLAGS) -MM -MF $@ -MT $(BUILD)/obj/$<.o $<
