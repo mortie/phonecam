@@ -24,10 +24,10 @@ INCLUDE = third_party/cpp-httplib
 WEBRTC_LIBS = libwebrtc.a third_party/boringssl/libboringssl.a
 WEBRTC_INCS = third_party/boringssl/src/include
 
-DEPS = $(patsubst %,$(BUILD)/dep/%.d,$(SRCS))
+DEPS = $(patsubst %,$(BUILD)/%.d,$(SRCS))
 OBJS = \
-	$(patsubst %,$(BUILD)/obj/%.o,$(SRCS)) \
-	$(patsubst %,$(BUILD)/gen/%.o,$(WEB))
+	$(patsubst %,$(BUILD)/%.o,$(SRCS)) \
+	$(patsubst %,$(BUILD)/gen/%.c.o,$(WEB))
 CXXFLAGS += \
 	$(patsubst %,-isystem%,$(INCLUDE)) -I$(WEBRTC_INC_PATH) \
 	$(patsubst %,-isystem$(WEBRTC_INC_PATH)/%,$(WEBRTC_INCS))
@@ -35,6 +35,7 @@ LDLIBS = \
 	$(patsubst %,$(WEBRTC_LIBS_PATH)/%,$(WEBRTC_LIBS)) \
 	-lpthread \
 
+# Re-run Make with WebRTC paths set
 .PHONY: all
 all: webrtc/.completed
 	$(MAKE) \
@@ -49,24 +50,31 @@ phonecam-all: $(BUILD)/phonecam
 build-webrtc:
 	(cd webrtc && ./build.sh $(WEBRTC_PATH))
 
+# Build WebRTC
 webrtc/.completed:
 	(cd webrtc && ./build.sh $(WEBRTC_PATH))
 
-$(BUILD)/dep/%.cc.d: %.cc $(HDRS)
+# Generate a .d file from a C++ source file to re-generate the source
+# when a dependency changes
+$(BUILD)/%.cc.d: %.cc $(HDRS)
 	@mkdir -p $(@D)
 	(: DEP :); $(CXX) $(CXXFLAGS) -MM -MF $@ -MT $(BUILD)/obj/$<.o $<
 
-$(BUILD)/obj/%.cc.o: %.cc
+# Compile a single C++ source file
+$(BUILD)/%.cc.o: %.cc
 	@mkdir -p $(@D)
 	(: CXX :); $(CXX) $(CXXFLAGS) -o $@ -c $<
 
-$(BUILD)/gen/%.o: $(BUILD)/gen/%.c
+# Compile a sigle generated C file
+$(BUILD)/gen/%.c.o: $(BUILD)/gen/%.c
 	(: CC  :); $(CC) -o $@ -c $<
 
+# Generate C files from web files
 $(BUILD)/gen/web/%.c: web/%
 	@mkdir -p $(@D)
 	(: XXD :); xxd -i $< $@
 
+# Link
 $(BUILD)/phonecam: $(OBJS)
 	@mkdir -p $(@D)
 	(: LNK :); $(CXX) $(LDFLAGS) -o $@ $^ $(LDLIBS)
