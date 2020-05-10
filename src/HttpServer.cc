@@ -109,15 +109,6 @@ void HttpServer::run(int port, HttpServerObserver *observer) {
 		throw std::runtime_error("Failed to sign X509 cert");
 	}
 
-	// Save to file for fun
-	FILE *f = fopen("key.pem", "wb");
-	PEM_write_PrivateKey(
-		f, pkey.get(), EVP_des_ede3_cbc(), (unsigned char *)"passphrase", 10, NULL, NULL);
-	fclose(f);
-	f = fopen("cert.pem", "wb");
-	PEM_write_X509(f, x509.get());
-	fclose(f);
-
 	// Create SSL server with our cert
 	server_ = std::make_unique<http::SSLServer>(x509.get(), pkey.get(), nullptr);
 	auto &srv = *server_;
