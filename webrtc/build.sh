@@ -4,8 +4,26 @@ set -e
 
 webrtc_checkout="branch-heads/m79"
 build_type="Debug"
-gn_args="is_debug=true"
+gn_args="
+	is_debug=true
+	proprietary_codecs=true
+	rtc_build_examples=false
+	rtc_include_tests=false
+	rtc_use_h264=true
+	rtc_use_gtk=false
+	rtc_use_x11=false
+	libyuv_include_tests=false
+	treat_warnings_as_errors=false
+	is_clang=false
+	linux_use_bundled_binutils=false
+	gold_path=\"\"
+	use_custom_libcxx=false
+	use_custom_libcxx_for_host=false
+	use_gold=false
+	use_sysroot=false
+"
 
+gn_args="$(printf "%s" "$gn_args" | sed 's/\t/  /g')"
 origpath="$(pwd)"
 
 if [ -z "$1" ]; then
@@ -23,6 +41,7 @@ fi
 mkdir -p "$datapath"
 cd "$datapath"
 
+# Download depot_tools
 if ! [ -e depot_tools/.complete ]; then
 	rm -rf depot_tools
 	git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git
@@ -31,6 +50,7 @@ fi
 
 export PATH="$(pwd)/depot_tools:$PATH"
 
+# Download webrtc
 if ! [ -e webrtc-checkout/.complete ]; then
 	rm -rf webrtc-checkout
 	mkdir webrtc-checkout
@@ -40,24 +60,24 @@ if ! [ -e webrtc-checkout/.complete ]; then
 		cd src
 			git checkout "$webrtc_checkout"
 		cd ..
-		gclient sync
+		gclient sync -D
 	cd ..
 
 	touch webrtc-checkout/.complete
 fi
 
-if ! [ -e "webrtc-checkout/src/out/$build_type/.complete" ]; then
-	cd webrtc-checkout/src
-		rm -rf "out/$build_type"
-		gn gen "out/$build_type" --args="$gn_args"
+# Compile webrtc
+cd webrtc-checkout/src
+	gn gen "out/$build_type" --args="$gn_args"
 
+	if ! ninja -C "out/$build_type"; then
 		# Linking might OOM kill a compiler, so try re-running with one job
+		echo "Ninja process died (code $?), re-running with 1 thread in case it was an OOM kill..."
 		ninja -C "out/$build_type" -j 1
-	cd ../..
-
-	touch "webrtc-checkout/src/out/$build_type/.complete"
-fi
+	fi
+cd ../..
 
 cd "$origpath"
 echo "$datapath/webrtc-checkout/src/out/$build_type/obj" > .libspath
 echo "$datapath/webrtc-checkout/src" > .incpath
+touch .completed

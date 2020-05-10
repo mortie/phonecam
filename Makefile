@@ -36,16 +36,20 @@ LDLIBS = \
 	-lpthread \
 
 .PHONY: all
-all: webrtc/.libspath webrtc/.incpath
+all: webrtc/.completed
 	$(MAKE) \
 		WEBRTC_LIBS_PATH="$$(cat webrtc/.libspath)" \
 		WEBRTC_INC_PATH="$$(cat webrtc/.incpath)" \
-		receiver-all
+		phonecam-all
 
-.PHONY: receiver-all
-receiver-all: $(BUILD)/receiver
+.PHONY: phonecam-all
+phonecam-all: $(BUILD)/phonecam
 
-webrtc/.libspath webrtc/.incpath:
+.PHONY: build-webrtc
+build-webrtc:
+	(cd webrtc && ./build.sh $(WEBRTC_PATH))
+
+webrtc/.completed:
 	(cd webrtc && ./build.sh $(WEBRTC_PATH))
 
 $(BUILD)/dep/%.cc.d: %.cc $(HDRS)
@@ -63,7 +67,7 @@ $(BUILD)/gen/web/%.c: web/%
 	@mkdir -p $(@D)
 	(: XXD :); xxd -i $< $@
 
-$(BUILD)/receiver: $(OBJS)
+$(BUILD)/phonecam: $(OBJS)
 	@mkdir -p $(@D)
 	(: LNK :); $(CXX) $(LDFLAGS) -o $@ $^ $(LDLIBS)
 
@@ -71,6 +75,11 @@ $(BUILD)/receiver: $(OBJS)
 clean:
 	rm -rf $(BUILD)
 
-ifeq ($(MAKECMDGOALS),receiver-all)
+.PHONY: clean-webrtc
+clean-webrtc:
+	[ -e webrtc/.datapath ] && rm -rf "$$(cat webrtc/.datapath)"
+	rm -f webrtc/.incpath webrtc/.libspath webrtc/.completed
+
+ifeq ($(MAKECMDGOALS),phonecam-all)
 -include $(DEPS)
 endif
